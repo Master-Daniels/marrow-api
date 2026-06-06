@@ -1,0 +1,27 @@
+.git/
+.gitignore
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts / binaries
+marrow-api
+*.exe
+*.test
+*.out
+
+# Local SQLite databases & state (never bake these into the image)
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Docker / Deployment files
+deployments/
+Dockerfile*
+.dockerignore
+
+# Documentation
+*.md

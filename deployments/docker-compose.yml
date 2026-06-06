@@ -1,0 +1,56 @@
+name: marrow
+
+services:
+  rsshub:
+    # use this image for full compatibility with sites that might be tricky to scrape diygod/rsshub:chromium-bundled
+    image: diygod/rsshub:latest
+    container_name: rsshub
+    restart: unless-stopped
+    ports:
+      - "1200:1200"
+    environment:
+      NODE_ENV: production
+      CACHE_TYPE: memory
+      # Add required access tokens here only if scraping authenticated routes
+      # (e.g. TWITTER_AUTHORIZATION, INSTAGRAM_COOKIE, etc.)
+    networks:
+      - marrow
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:1200/"]
+      interval: 20s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  marrow-api:
+    build:
+      context: ../
+      dockerfile: deployments/Dockerfile
+    container_name: marrow-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent SQLite storage (survives container recreation)
+      - marrow_data:/app/data
+      # Hot-reloadable feed sources definition (read-only)
+      - ../configs:/app/configs:ro
+    environment:
+      DATABASE_URL: /app/data/marrow.db
+      RSSHUB_BASE_URL: http://rsshub:1200
+      APP_ENV: production
+      LOG_LEVEL: info
+    depends_on:
+      rsshub:
+        condition: service_healthy
+    networks:
+      - marrow
+
+volumes:
+  marrow_data:
+    name: marrow_data
+
+networks:
+  marrow:
+    name: marrow
+    driver: bridge

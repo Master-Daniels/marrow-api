@@ -1,0 +1,11 @@
+sources:
+  # - id: "Y combinator News"
+  #   display_name: "Y combinator News"
+  #   type_hint: "article"
+  #   feed_url: "https://news.ycombinator.com/rss"
+  #   poll_interval: "5s"
+  - id: "Elon Musk Twitter"
+    display_name: "Elon Must Twitter"
+    type_hint: "twitter"
+    feed_url: "/twitter/user/elon"
+    poll_interval: "5s"
