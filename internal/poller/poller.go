@@ -130,30 +130,28 @@ func (p *Poller) run() {
 	if err != nil || interval <= 0 {
 		interval = 15 * time.Minute
 	}
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	// Run immediately the first time.
-	p.fetchOnce()
+	timer := time.NewTimer(0)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-p.ctx.Done():
 			p.logger.Info("poller stopped")
 			return
-		case <-ticker.C:
-			p.fetchOnce()
+		case <-timer.C:
+			nextDelay := p.fetchOnce(interval)
+			timer.Reset(nextDelay)
 		}
 	}
 }
 
 // fetchOnce performs a single HTTP GET → parse → store cycle.
 // It also handles back‑off on error.
-func (p *Poller) fetchOnce() {
+func (p *Poller) fetchOnce(normalInterval time.Duration) time.Duration {
 	if p.backoffReachedLimit() {
 		// We have exhausted attempts (if MaxAttempts > 0)
 		p.logger.Warn("max back‑off attempts reached, skipping this tick")
-		return
+		return normalInterval // return to normal interval
 	}
 
 	p.logger.Debug("fetching feed")
@@ -163,8 +161,8 @@ func (p *Poller) fetchOnce() {
 	targetURL := p.fetchURL()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 	if err != nil {
-		p.handleError(fmt.Errorf("request creation: %w", err))
-		return
+		return p.handleError(fmt.Errorf("request creation: %w", err))
+
 	}
 	// optional custom headers from config
 	for k, v := range p.src.Headers {
@@ -173,20 +171,20 @@ func (p *Poller) fetchOnce() {
 
 	resp, err := p.client.Do(req)
 	if err != nil {
-		p.handleError(fmt.Errorf("http error: %w", err))
-		return
+		return p.handleError(fmt.Errorf("http error: %w", err))
+		
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		p.handleError(fmt.Errorf("unexpected status %d", resp.StatusCode))
-		return
+		return p.handleError(fmt.Errorf("unexpected status %d", resp.StatusCode))
+		
 	}
 
 	items, err := p.parser.Parse(resp.Body, p.src)
 	if err != nil {
-		p.handleError(marrowErrors.NewParsingError(p.src.ID, "failed to parse feed format", err))
-		return
+		return p.handleError(marrowErrors.NewParsingError(p.src.ID, "failed to parse feed format", err))
+		
 	}
 
 	// Insert each item; deduplication is handled by the DB (INSERT OR IGNORE)
@@ -205,7 +203,7 @@ func (p *Poller) fetchOnce() {
 		dedupedID, err := deduplicateFunction(dedupItem)
 		if err != nil {
 			p.logger.Error("deduplication error", "err", err)
-			return
+			return normalInterval
 		}
 		it.ID = dedupedID
 		it.SourceID = p.src.ID
@@ -228,11 +226,12 @@ func (p *Poller) fetchOnce() {
 		p.logger.Info("fetched new items", "count", inserted)
 	}
 	p.handleSuccess()
+	return normalInterval
 }
 
 // handleError records the failure, increments the back‑off counter and
 // optionally logs the error message.
-func (p *Poller) handleError(err error) {
+func (p *Poller) handleError(err error) time.Duration {
 	p.failCount++
 
 	// Structured logging with contextual information.
@@ -258,7 +257,7 @@ func (p *Poller) handleError(err error) {
 
 	delay := p.computeBackoff()
 	p.logger.Debug("applying back‑off", "delay", delay)
-	time.Sleep(delay) // block for the backoff delay
+	return delay
 }
 
 // handleSuccess resets the failure counter and back‑off state.
