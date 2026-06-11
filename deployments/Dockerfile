@@ -3,7 +3,7 @@
 # ------------------------------------------------------------------
 # Stage 1: Builder
 # ------------------------------------------------------------------
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 
@@ -29,7 +29,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 # ------------------------------------------------------------------
 # Stage 2: Production Runtime
 # ------------------------------------------------------------------
-FROM gcr.io/distroless/static-debian12
+FROM alpine:3.22.4
+
+
 
 WORKDIR /app
 
@@ -47,10 +49,12 @@ COPY --from=builder --chown=appuser:appgroup /app/marrow-api .
 
 USER appuser:appgroup
 
+ENV APP_PORT=8080
+
 EXPOSE 8080
 
 # Lightweight healthcheck leveraging busybox wget
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD wget -qO- http://localhost:8080/health > /dev/null || exit 1
+  CMD wget -qO- http://localhost:${APP_PORT}/health > /dev/null || exit 1
 
 ENTRYPOINT ["./marrow-api"]

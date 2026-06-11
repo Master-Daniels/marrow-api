@@ -2,47 +2,60 @@ name: marrow
 
 services:
   rsshub:
-    # use this image for full compatibility with sites that might be tricky to scrape diygod/rsshub:chromium-bundled
+    # use this image for full compatibility with sites that might be tricky to scrape diygod/rsshub:chromium-bundled(I think)
     image: diygod/rsshub:latest
     container_name: rsshub
     restart: unless-stopped
     ports:
       - "1200:1200"
     environment:
-      NODE_ENV: production
-      CACHE_TYPE: memory
-      # Add required access tokens here only if scraping authenticated routes
-      # (e.g. TWITTER_AUTHORIZATION, INSTAGRAM_COOKIE, etc.)
+      NODE_ENV: ${RSSHUB_NODE_ENV:-production}
+      CACHE_TYPE: ${RSSHUB_CACHE_TYPE:-memory}
+      NPM_CONFIG_LOGLEVEL: ${RSSHUB_NPM_LOGLEVEL:-error}
+      REQUEST_TIMEOUT: ${RSSHUB_REQUEST_TIMEOUT:-10000}
+      REQUEST_RETRY: ${RSSHUB_REQUEST_RETRY:-2}
     networks:
       - marrow
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:1200/"]
-      interval: 20s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
-
-  marrow-api:
+      test: ["CMD", "wget", "-qO-", "http://rsshub:1200/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    # Add resource limits to prevent memory issues
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+  api:
     build:
       context: ../
       dockerfile: deployments/Dockerfile
     container_name: marrow-api
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${APP_PORT:-8080}:${APP_PORT:-8080}"
     volumes:
       # Persistent SQLite storage (survives container recreation)
-      - marrow_data:/app/data
+      - ../data:/app/data
       # Hot-reloadable feed sources definition (read-only)
       - ../configs:/app/configs:ro
     environment:
-      DATABASE_URL: /app/data/marrow.db
-      RSSHUB_BASE_URL: http://rsshub:1200
-      APP_ENV: production
-      LOG_LEVEL: info
+      DATABASE_URL: ${DATABASE_URL:-/app/data/marrow.db}
+      RSSHUB_BASE_URL: ${RSSHUB_BASE_URL:-http://rsshub:1200}
+      APP_ENV: ${APP_ENV:-production}
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+      APP_PORT: ${APP_PORT:-8080}
+      CONFIG_PATH: ${CONFIG_PATH:-/app/configs}
     depends_on:
-      rsshub:
-        condition: service_healthy
+      - rsshub
     networks:
       - marrow
 
