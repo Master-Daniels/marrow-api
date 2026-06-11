@@ -8,6 +8,7 @@ type AppConfig struct {
 	Port        string
 	ConfigPath  string
 	Loglevel    string
+	AppEnv      string
 }
 
 func getEnvDefault(key, defaultValue string) string {
@@ -25,6 +26,7 @@ func LoadAppConfig() (*AppConfig, error) {
 		Port:        getEnvDefault("APP_PORT", "8080"),
 		ConfigPath:  getEnvDefault("CONFIG_PATH", "../../configs"),
 		Loglevel:    getEnvDefault("LOG_LEVEL", "info"),
+		AppEnv:      getEnvDefault("APP_ENV", "development"),
 	}
 	return cfg, nil
 }

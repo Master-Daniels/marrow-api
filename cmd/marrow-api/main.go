@@ -33,20 +33,23 @@ func main() {
 	logger := logger.NewLogger()
 
 	// 1️⃣ Load configuration (will be watched later)
-	configPath := fmt.Sprintf("%s%s", appconfig.ConfigPath, "sources.yml")
+	configPath, err := config.ResolveConfigPath(appconfig.ConfigPath)
+	if err != nil {
+		log.Fatalf("sources.yml file cannot be found in the passed in directory path: %v", err)
+	}
 	sources, err := config.Load(configPath)
 	if err != nil {
 		log.Fatalf("failed to load sources: %v", err)
 	}
 
 	// 2️⃣ Open SQLite DB (file will be created under ./data)
-	dbPath := "./data/marrow.db"
+	dbPath := appconfig.DatabaseURL
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		log.Fatalf("failed to create data directory: %v", err)
 	}
 
-	repo, err := sqlite.New(dbPath)
+	repo, err := sqlite.New(dbPath, appconfig)
 	if err != nil {
 		log.Fatalf("sqlite init failed: %v", err)
 	}

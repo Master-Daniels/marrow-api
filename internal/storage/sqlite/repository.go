@@ -3,10 +3,12 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	_ "embed"
 	"os"
 	"path/filepath"
 	"time"
 
+	"github.com/Master-Daniels/marrow/internal/config"
 	"github.com/Master-Daniels/marrow/internal/domain"
 	"github.com/Master-Daniels/marrow/internal/errors"
 	"github.com/Master-Daniels/marrow/internal/storage"
@@ -15,11 +17,16 @@ import (
 )
 
 type SQLiteRepo struct {
-	db *database.Queries
+	db        *database.Queries
+	appconfig *config.AppConfig
 }
 
+//go:embed schema.sql
+var schemaDDl []byte
+
 // New creates a repo and runs migrations if needed. The path can be ":memory:" for an in-memory database or a file path for a persistent database.
-func New(path string) (*SQLiteRepo, error) {
+func New(path string, appconfig *config.AppConfig) (*SQLiteRepo, error) {
+	println(appconfig.AppEnv)
 	ctx := context.Background()
 
 	// Ensure directory exists for file-based databases
@@ -35,12 +42,13 @@ func New(path string) (*SQLiteRepo, error) {
 		return nil, errors.NewDatabaseError("SQLiteRepo.New", "failed to open database", err)
 	}
 
-	schemaPath, err := schemaFilePath()
-	if err != nil {
-		return nil, errors.NewDatabaseError("SQLiteRepo.New", "failed to get schema file path", err)
-	}
+	// schemaPath, err := schemaFilePath()
+	// if err != nil {
+	// 	return nil, errors.NewDatabaseError("SQLiteRepo.New", "failed to get schema file path", err)
+	// }
 
-	ddl, err := os.ReadFile(schemaPath)
+	var ddl []byte
+	ddl = schemaDDl
 	if err != nil {
 		return nil, errors.NewDatabaseError("SQLiteRepo.New", "failed to read schema file", err)
 	}

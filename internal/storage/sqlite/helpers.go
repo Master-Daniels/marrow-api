@@ -18,7 +18,7 @@ func schemaFilePath() (string, error) {
 		return "", errors.New("unable to determine schema file path")
 	}
 
-	return filepath.Join(filepath.Dir(filename), "..", "schema.sql"), nil
+	return filepath.Join(filepath.Dir(filename), "schema.sql"), nil
 }
 
 // nullableValue converts a pointer-based domain field into its SQL nullable type.

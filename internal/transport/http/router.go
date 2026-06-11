@@ -12,7 +12,7 @@ func New(h *Handler) http.Handler {
 	// Example endpoint – you’ll flesh it out later
 	r.Get("/api/v1/feed", h.GetFeed)
 	r.Get("/api/v1/updates", h.SSEHandler)
-	r.Get("/api/v1/sources", h.GetSourceHandler)
+	r.Get("/api/v1/sources", h.GetSourcesHandler)
 	r.Get("/api/v1/sources/{sourceID}", h.GetSourceHandler)
 	r.Get("/api/v1/sources/polling_state", h.GetSourcesAndPollingStateHandler)
 	r.Get("/api/v1/sources/{sourceID}/polling_state", h.GetSourceAndPollingStateHandler)
